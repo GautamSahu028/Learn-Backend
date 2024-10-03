@@ -1,12 +1,21 @@
 // require('dotenv').config({path: './env'});
 import dotenv from "dotenv";
 import connectDB from "./db/index.js";
+import { app } from "./app.js";
 
 dotenv.config({
   path: "./env",
 });
 
-connectDB();
+connectDB()
+  .then(() => {
+    app.listen(process.env.PORT || 8000, () => {
+      console.log(` Server running at port : ${process.env.PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error(`ERROR connecting with DB .catch : ${error} `);
+  });
 
 // Whenever dealing with Data-Base it always takes time so it is a good practice to use :
 // try-catch block or async-await
