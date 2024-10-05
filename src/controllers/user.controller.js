@@ -89,10 +89,16 @@ const loginUser = asyncHandler(async (req, res) => {
   const { email, username, password } = req.body;
 
   // 2.) use username or email to enter
-  if (!username || !email) {
+  // console.log("username : ", username);
+  // console.log("password : ", password);
+
+  if (!username && !email) {
     throw new ApiError(404, "username or email is required");
   }
-  const user = await User.findOne({ $or: [{ username }, { email }] });
+
+  const user = await User.findOne({
+    $or: [{ username: username?.toLowerCase() }, { email }],
+  });
 
   // 3.) find the user if it exists in DB, if not return error.
   if (!user) {
@@ -106,6 +112,7 @@ const loginUser = asyncHandler(async (req, res) => {
   }
 
   // 5.) if password is correct then generate access and refresh tokens
+  // console.log("user._id : ", user._id);
   const { accessToken, refreshToken } =
     await user.generateAccessAndRefreshTokens(user._id);
 
@@ -137,10 +144,10 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 const logOutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
-    req.user - _id,
+    req.user._id,
     {
-      $set: {
-        refreshToken: undefined,
+      $unset: {
+        refreshToken: 1,
       },
     },
     {
