@@ -84,4 +84,78 @@ const registerUser = asyncHandler(async (req, res) => {
     );
 });
 
-export { registerUser };
+const loginUser = asyncHandler(async (req, res) => {
+  // 1.) get data from req.body
+  const { email, username, password } = req.body;
+
+  // 2.) use username or email to enter
+  if (!username || !email) {
+    throw new ApiError(404, "username or email is required");
+  }
+  const user = await User.findOne({ $or: [{ username }, { email }] });
+
+  // 3.) find the user if it exists in DB, if not return error.
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // 4.) check password
+  const validPassword = await user.isPasswordCorrect(password);
+  if (!validPassword) {
+    throw new ApiError(401, "Invalid user credentials");
+  }
+
+  // 5.) if password is correct then generate access and refresh tokens
+  const { accessToken, refreshToken } =
+    await user.generateAccessAndRefreshTokens(user._id);
+
+  // 6.) remove the unwanted fields
+  const loggedInUser = await User.findById(user._id).select(
+    "-password -refreshToken"
+  );
+
+  // 7.) Send cookies
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        {
+          user: loggedInUser,
+          accessToken,
+          refreshToken,
+        },
+        "User logged in successfully"
+      )
+    );
+});
+const logOutUser = asyncHandler(async (req, res) => {
+  await User.findByIdAndUpdate(
+    req.user - _id,
+    {
+      $set: {
+        refreshToken: undefined,
+      },
+    },
+    {
+      new: true,
+    }
+  );
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, "User logged out"));
+});
+export { registerUser, loginUser, logOutUser };
